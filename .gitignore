@@ -1,0 +1,12 @@
+# Ignore everything, then add back what we want.
+# For explanation of git's strange "unignore" syntax see:
+# http://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
+
+/*
+
+!.gitignore
+!builds/
+!unity/
+unity/*
+!unity/Assets/
+!unity/ProjectSettings
