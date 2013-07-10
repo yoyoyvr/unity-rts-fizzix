@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // An RTS navigator follows a series of waypoints.
-[AddComponentMenu("Character/RTS Navigator")]
-public class RTSNavigator : MonoBehaviour
+[AddComponentMenu("Character/RTS Navigator 2")]
+public class RTSNavigator2 : MonoBehaviour
 {
 	private enum RTSNavigatorState
 	{
@@ -31,12 +31,12 @@ public class RTSNavigator : MonoBehaviour
 	private RTSNavigatorState mState = RTSNavigatorState.Stopped;
 	private List<Vector3> mWaypoints = null;
 
-	private float mTimeStepsToStop = 0.0f;
 	private float mMaxAcceleration = 0.0f;
 	
 	private float mStoppingFromDistance = 0.0f;
 	private float mStoppingFromSpeed = 0.0f;
 	
+	private Vector3 mPrevPosition = Vector3.zero;
 	private Vector3 mPrevEulerAngles = Vector3.zero;
 	
 	private Vector3 Position
@@ -80,19 +80,15 @@ public class RTSNavigator : MonoBehaviour
 		// speed over a number of fixed time steps.
 		// Note that there is no equivalent max deceleration, as we may
 		// need to stop abruptly to hit a nearby waypoint.
-		mTimeStepsToStop = m_AccelerateTime / Time.fixedDeltaTime;
-		mMaxAcceleration = m_MaxSpeed / mTimeStepsToStop;
+		float timeStepsToMaxSpeed = m_AccelerateTime / Time.fixedDeltaTime;
+		mMaxAcceleration = m_MaxSpeed / timeStepsToMaxSpeed;
 		
+		mPrevPosition = transform.position;
 		mPrevEulerAngles = transform.eulerAngles;
 	}
 	
 	void FixedUpdate()
 	{
-		// Prevent the rigid body from sleeping.
-		// TODO: rigid bodies don't wake up automatically when a collider hits them, and (worse) the collider doesn't get an OnCollisionEnter message for a sleeping rigid body
-		// SOLUTION: use a kinematic (non-physics-controlled) rigidbody on the collider that should wake this guy up
-		//rigidbody.WakeUp();
-		
 		switch (mState)
 		{
 			case RTSNavigatorState.Stopped:
@@ -106,92 +102,6 @@ public class RTSNavigator : MonoBehaviour
 			case RTSNavigatorState.Navigate:
 				Navigate();
 			break;
-		}
-		
-		ApplyConstraints();
-	}
-	
-	private void ApplyConstraints()
-	{
-		Vector3 constrainedAngularVelocity;
-		if (Constrain(rigidbody.angularVelocity, Constraints.MaxAngularVelocity, out constrainedAngularVelocity))
-		{
-			rigidbody.angularVelocity = constrainedAngularVelocity;
-		}
-		
-		
-		Vector3 constrainedEulerAngles;
-		if (ConstrainAngles(transform.eulerAngles, Constraints.MaxEulerAngles, out constrainedEulerAngles))
-		{
-			transform.eulerAngles = constrainedEulerAngles;
-		}
-	}
-			
-	private bool Constrain(Vector3 val, Vector3 limit, out Vector3 newval)
-	{
-		float x, y, z;
-		bool constrained = Constrain(val.x, limit.x, out x);
-		constrained = Constrain(val.y, limit.y, out y) || constrained;
-		constrained = Constrain(val.z, limit.z, out z) || constrained;
-		newval = (constrained ? new Vector3(x, y, z) : val);
-		
-		return constrained;
-	}
-	
-	private bool Constrain(float val, float limit, out float newval)
-	{
-		if ((limit == 0) || (Mathf.Abs(val) <= limit))
-		{
-			newval = val;
-			return false;
-		}
-		else
-		{
-			newval = Mathf.Clamp(val, -limit, limit);
-			return true;
-		}
-	}
-	
-	private bool ConstrainAngles(Vector3 val, Vector3 limit, out Vector3 newval)
-	{
-		float x, y, z;
-		bool constrained = ConstrainAngle(val.x, limit.x, out x);
-		constrained = ConstrainAngle(val.y, limit.y, out y) || constrained;
-		constrained = ConstrainAngle(val.z, limit.z, out z) || constrained;
-		
-		newval = (constrained ? new Vector3(x, y, z) : val);
-		
-		return constrained;
-	}
-	
-	private bool ConstrainAngle(float val, float limit, out float newval)
-	{
-		if (limit == 0)
-		{
-			newval = val;
-			return false;
-		}
-		else
-		{
-			float min = 360.0f - limit;
-			if ((val < limit) || (val > min))
-			{
-				newval = val;
-				return false;
-			}
-			else
-			{
-				if (val > 180.0f)
-				{
-					newval = min;
-					return true;
-				}
-				else
-				{
-					newval = limit;
-					return true;
-				}
-			}
 		}
 	}
 	
@@ -230,10 +140,14 @@ public class RTSNavigator : MonoBehaviour
 			// Head directly for destination.
 			Vector3 direction = delta.normalized;
 			
-			float desiredSpeed = (distance / mStoppingFromDistance) * mStoppingFromSpeed;
-			Vector3 desiredVelocity = new Vector3(direction.x * desiredSpeed, rigidbody.velocity.y, direction.z * desiredSpeed);
-			//Vector3 desiredVelocity = direction * desiredSpeed;
-			rigidbody.velocity = desiredVelocity;
+			Vector3 currentVelocity = transform.position - mPrevPosition;
+			float desiredSpeed = (distance / mStoppingFromDistance) * mStoppingFromSpeed * Time.deltaTime;
+			Vector3 desiredVelocity = new Vector3(direction.x * desiredSpeed, currentVelocity.y, direction.z * desiredSpeed);
+			
+			mPrevPosition = transform.position;
+			mPrevEulerAngles = transform.eulerAngles;
+			
+			transform.Translate(desiredVelocity);
 		}
 	}
 	
@@ -247,11 +161,12 @@ public class RTSNavigator : MonoBehaviour
 		float distance = delta.magnitude;
 		
 		// How fast are we moving?
-		Vector3 currentVelocity = rigidbody.velocity;
+		Vector3 currentVelocity = (transform.position - mPrevPosition);
+		float currentVelocityY = currentVelocity.y;
 		currentVelocity.y = 0.0f;
-		float currentSpeed = currentVelocity.magnitude;
+		float currentSpeed = currentVelocity.magnitude / Time.deltaTime;
 		
-		// Distance to stop assumes constate deceleration, so average speed is half the current speed.
+		// Distance to stop assumes constant deceleration, so average speed is half the current speed.
 		float distanceToStop = m_DecelerateTime * currentSpeed / 2.0f;
 
 		// Time to start slowing down?
@@ -260,15 +175,25 @@ public class RTSNavigator : MonoBehaviour
 			mState = RTSNavigatorState.Stopping;
 			mStoppingFromSpeed = currentSpeed;
 			mStoppingFromDistance = distance;
+			Stopping();
 		}
 		else
 		{
 			// Head directly for destination.
 			Vector3 direction = delta.normalized;
+
+			// Apply deltaTime here, so speed is actually speed per frame, not per second.
+			float desiredSpeed = Mathf.Clamp(currentSpeed + mMaxAcceleration, 0.0f, m_MaxSpeed) * Time.deltaTime;
+			Vector3 desiredVelocity = new Vector3(direction.x * desiredSpeed, currentVelocityY, direction.z * desiredSpeed);
+			if (desiredVelocity.magnitude > distance)
+			{
+				desiredVelocity *= distance / desiredVelocity.magnitude;
+			}
 			
-			float desiredSpeed = Mathf.Clamp(currentSpeed + mMaxAcceleration, 0.0f, m_MaxSpeed);
-			Vector3 desiredVelocity = new Vector3(direction.x * desiredSpeed, rigidbody.velocity.y, direction.z * desiredSpeed);
-			rigidbody.velocity = desiredVelocity;
+			mPrevPosition = transform.position;
+			mPrevEulerAngles = transform.eulerAngles;
+			
+			transform.Translate(desiredVelocity);
 		}
 	}
 }
