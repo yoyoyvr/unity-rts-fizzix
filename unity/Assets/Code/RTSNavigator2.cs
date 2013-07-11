@@ -13,20 +13,12 @@ public class RTSNavigator2 : MonoBehaviour
 		Navigate
 	}
 	
-	[Serializable]
-	public class NavigationConstraints
-	{
-		public Vector3 MaxEulerAngles;
-		public Vector3 MaxAngularVelocity;
-	}
-
 	[SerializeField]private float m_MaxSpeed = 10.0f;
 	[SerializeField]private float m_AccelerateTime = 1.0f;
 	[SerializeField]private float m_DecelerateTime = 1.0f;
 	[SerializeField]private float m_ArrivalDistance = 0.1f;
 	[SerializeField]private Vector3 m_Center = Vector3.zero;
 	[SerializeField]private float m_Height = 0.0f;
-	[SerializeField]private NavigationConstraints Constraints;
 	
 	private RTSNavigatorState mState = RTSNavigatorState.Stopped;
 	private List<Vector3> mWaypoints = new List<Vector3>();
