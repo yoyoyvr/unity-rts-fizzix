@@ -1,14 +1,26 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 // An RTS input controller provides a destination based on user input.
 [AddComponentMenu("Character/RTS Input Controller")]
-public class RTSInputController : RTSControllerBase
+public class RTSInputController : MonoBehaviour
 {
+	public delegate void AddWaypointHandler(Vector3 waypoint, bool additive);
+	public event AddWaypointHandler OnAddWaypoint;
+	
 	private static List<GameObject> sSelected = new List<GameObject>();
 	
 	private bool mClickInProgress = false;
 	private Vector2 mClickPoint = Vector2.zero;
+	
+	private void AddWaypoint(Vector3 waypoint, bool additive)
+	{
+		if (OnAddWaypoint != null)
+		{
+			OnAddWaypoint(waypoint, additive);
+		}
+	}
 	
 	private void OnGUI()
 	{
@@ -39,8 +51,8 @@ public class RTSInputController : RTSControllerBase
 				RaycastHit hitInfo;
 				if (Physics.Raycast(mouseRay, out hitInfo))
 				{
-					bool addPoint = (Event.current.modifiers == EventModifiers.Shift);
-					SetWaypoint(hitInfo.point, addPoint);
+					bool additive = (Event.current.modifiers == EventModifiers.Shift);
+					AddWaypoint(hitInfo.point, additive);
 				}
 			}
 		}

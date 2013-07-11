@@ -29,7 +29,7 @@ public class RTSNavigator2 : MonoBehaviour
 	[SerializeField]private NavigationConstraints Constraints;
 	
 	private RTSNavigatorState mState = RTSNavigatorState.Stopped;
-	private List<Vector3> mWaypoints = null;
+	private List<Vector3> mWaypoints = new List<Vector3>();
 
 	private float mMaxAcceleration = 0.0f;
 	
@@ -66,7 +66,7 @@ public class RTSNavigator2 : MonoBehaviour
 	
 	void Start()
 	{
-		RTSControllerBase controller = GetComponent<RTSControllerBase>();
+		RTSInputController controller = GetComponent<RTSInputController>();
 		if (controller == null)
 		{
 			Debug.LogError(name + ": no RTS controller attached, disabling", this);
@@ -74,7 +74,7 @@ public class RTSNavigator2 : MonoBehaviour
 			return;
 		}
 		
-		controller.OnUpdateWaypoints += UpdateWaypoints;
+		controller.OnAddWaypoint += AddWaypoint;
 
 		// Compute max acceleration, based on smoothly ramping to max
 		// speed over a number of fixed time steps.
@@ -85,6 +85,19 @@ public class RTSNavigator2 : MonoBehaviour
 		
 		mPrevPosition = transform.position;
 		mPrevEulerAngles = transform.eulerAngles;
+	}
+	
+	private void AddWaypoint(Vector3 waypoint, bool additive)
+	{
+		if (!additive)
+		{
+			mWaypoints.Clear();
+		}
+		mWaypoints.Add(waypoint);
+		if (mWaypoints.Count == 1)
+		{
+			mState = RTSNavigatorState.Navigate;
+		}
 	}
 	
 	void FixedUpdate()
@@ -194,6 +207,17 @@ public class RTSNavigator2 : MonoBehaviour
 			mPrevEulerAngles = transform.eulerAngles;
 			
 			transform.Translate(desiredVelocity);
+		}
+	}
+	
+	void OnDrawGizmos()
+	{
+		Vector3 prev = transform.position;
+		foreach (Vector3 waypoint in mWaypoints)
+		{
+			Gizmos.DrawLine(prev, waypoint);
+			Gizmos.DrawSphere(waypoint, 1.0f);
+			prev = waypoint;
 		}
 	}
 }
