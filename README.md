@@ -1,7 +1,7 @@
 unity-rts-fizzix
 ================
 
-Experiments with the interaction of physics and waypoint-based vehicle navigation.
+Experiments with the interaction of physics and waypoint-based unit navigation.
 
 Physics looks cool, but doesn't necessarily respect unit tunings for speed, turning
 radius, stopping distance, etc. This project is a Unity sandbox to explore the combination
