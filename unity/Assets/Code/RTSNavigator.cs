@@ -37,8 +37,6 @@ public class RTSNavigator : MonoBehaviour
 	private float mStoppingFromDistance = 0.0f;
 	private float mStoppingFromSpeed = 0.0f;
 	
-	private Vector3 mPrevEulerAngles = Vector3.zero;
-	
 	private Vector3 Position
 	{
 		get
@@ -82,8 +80,6 @@ public class RTSNavigator : MonoBehaviour
 		// need to stop abruptly to hit a nearby waypoint.
 		mTimeStepsToStop = m_AccelerateTime / Time.fixedDeltaTime;
 		mMaxAcceleration = m_MaxSpeed / mTimeStepsToStop;
-		
-		mPrevEulerAngles = transform.eulerAngles;
 	}
 	
 	private void AddWaypoint(Vector3 waypoint, bool additive)

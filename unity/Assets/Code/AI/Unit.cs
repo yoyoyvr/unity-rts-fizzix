@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace AI
 {
+	[Serializable]	// so details can be seen in debug Inspector
 	public class Unit
 	{
 		[Serializable]
@@ -10,7 +11,7 @@ namespace AI
 		{
 			public Vector2D Position;
 			public float Rotation;
-			public float MaxSpeedKMH = 200.0f;
+			public float MaxSpeedKmPerHour = 200.0f;
 			public float AccelerateTimeSec = 3.0f;
 			public float DecelerateTimeSec = 1.5f;
 			public float WaypointArrivalToleranceM = 1f;
@@ -26,13 +27,29 @@ namespace AI
 		private readonly UnitData mData;
 		
 		private UnitState mState = UnitState.Stopped;
-		private List<Vector2D> mWaypoints = null;
+		private List<Vector2D> mWaypoints = new List<Vector2D>();
 	
 		private float mStoppingFromDistance = 0.0f;
 		private float mStoppingFromSpeed = 0.0f;
 		
 		private Vector2D mPrevPosition;
-		private float mPrevRotation = 0.0f;
+		//private float mPrevRotation = 0.0f;
+		
+		//public Unit() : this(new UnitData())
+		//{
+		//}
+		
+		public Unit(UnitData data, Vector2D initialPosition)
+		{
+			mData = data;
+			Teleport(initialPosition);
+		}
+		
+		public void Teleport(Vector2D position)
+		{
+			mData.Position = position;
+			mPrevPosition = position;
+		}
 		
 		public Vector2D Position
 		{
@@ -55,11 +72,11 @@ namespace AI
 			}
 		}
 		
-		private Vector2D Destination
+		public Vector2D Destination
 		{
 			get
 			{
-				if ((mState == UnitState.Stopped) || (mWaypoints == null) || (mWaypoints.Count == 0))
+				if (mWaypoints.Count == 0)
 				{
 					return Position;
 				}
@@ -70,16 +87,9 @@ namespace AI
 			}
 		}
 		
-		public Unit() : this(new UnitData())
+		public IEnumerable<Vector2D> Route
 		{
-		}
-		
-		public Unit(UnitData data)
-		{
-			mData = data;
-			
-			mPrevPosition = Position;
-			mPrevRotation = Rotation;
+			get { return mWaypoints; }
 		}
 		
 		public void Update(float deltaTime)
@@ -100,13 +110,18 @@ namespace AI
 			}
 		}
 		
-		/**
-		private void UpdateWaypoints(List<Vector3> waypoints)
+		public void AddWaypoint(Vector2D waypoint, bool additive)
 		{
-			mWaypoints = waypoints;
-			mState = UnitState.Navigate;
+			if (!additive)
+			{
+				mWaypoints.Clear();
+			}
+			mWaypoints.Add(waypoint);
+			if (mWaypoints.Count == 1)
+			{
+				mState = UnitState.Driving;
+			}
 		}
-		**/
 		
 		private void Stopped(float deltaTime)
 		{
@@ -140,7 +155,7 @@ namespace AI
 				Vector2D desiredVelocity = direction * desiredSpeed;
 				
 				mPrevPosition = Position;
-				mPrevRotation = Rotation;
+				//mPrevRotation = Rotation;
 				
 				Position += desiredVelocity;
 			}
@@ -175,7 +190,7 @@ namespace AI
 				// speed over a number of time steps. Assumes deltaTime will be
 				// same for each time step.
 				float timeStepsToMaxSpeed = mData.AccelerateTimeSec / deltaTime;
-				float maxSpeed = mData.MaxSpeedKMH * Constants.KMH2MetersPerSecond;
+				float maxSpeed = mData.MaxSpeedKmPerHour * Constants.KmPerHour2MetersPerSecond;
 				float maxAcceleration = maxSpeed / timeStepsToMaxSpeed;
 				
 				// Head directly for destination.
@@ -185,17 +200,18 @@ namespace AI
 				float desiredSpeed = currentSpeed + maxAcceleration;
 				if (desiredSpeed > maxSpeed)
 					desiredSpeed = maxSpeed;
-				desiredSpeed *= deltaTime;
-				Vector2D desiredVelocity = direction * desiredSpeed;
-				if (desiredVelocity.Magnitude > distance)
+				Vector2D updateDelta = direction * (desiredSpeed * deltaTime);
+				if (updateDelta.Magnitude > distance)
 				{
-					desiredVelocity = direction * distance;
+					updateDelta = direction * distance;
 				}
 				
 				mPrevPosition = Position;
-				mPrevRotation = Rotation;
+				//mPrevRotation = Rotation;
 				
-				Position += desiredVelocity;
+				Position += updateDelta;
+				
+				//TODO: update Rotation
 			}
 		}
 	}

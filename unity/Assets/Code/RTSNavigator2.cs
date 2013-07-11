@@ -29,7 +29,6 @@ public class RTSNavigator2 : MonoBehaviour
 	private float mStoppingFromSpeed = 0.0f;
 	
 	private Vector3 mPrevPosition = Vector3.zero;
-	private Vector3 mPrevEulerAngles = Vector3.zero;
 	
 	private Vector3 Position
 	{
@@ -76,7 +75,6 @@ public class RTSNavigator2 : MonoBehaviour
 		mMaxAcceleration = m_MaxSpeed / timeStepsToMaxSpeed;
 		
 		mPrevPosition = transform.position;
-		mPrevEulerAngles = transform.eulerAngles;
 	}
 	
 	private void AddWaypoint(Vector3 waypoint, bool additive)
@@ -150,7 +148,6 @@ public class RTSNavigator2 : MonoBehaviour
 			Vector3 desiredVelocity = new Vector3(direction.x * desiredSpeed, currentVelocity.y, direction.z * desiredSpeed);
 			
 			mPrevPosition = transform.position;
-			mPrevEulerAngles = transform.eulerAngles;
 			
 			transform.Translate(desiredVelocity);
 		}
@@ -196,7 +193,6 @@ public class RTSNavigator2 : MonoBehaviour
 			}
 			
 			mPrevPosition = transform.position;
-			mPrevEulerAngles = transform.eulerAngles;
 			
 			transform.Translate(desiredVelocity);
 		}
