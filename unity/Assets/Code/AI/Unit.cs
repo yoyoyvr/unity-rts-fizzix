@@ -9,12 +9,12 @@ namespace AI
 		[Serializable]
 		public class UnitData
 		{
-			public Vector2D Position;
-			public float Rotation;
-			public float MaxSpeedKmPerHour = 200.0f;
+			public Transform2D Transform = new Transform2D();
+			public float MaxSpeedMetersPerSec = 60.0f;
 			public float AccelerateTimeSec = 3.0f;
 			public float DecelerateTimeSec = 1.5f;
 			public float WaypointArrivalToleranceM = 1f;
+			public float MaxAngularSpeedDegreesPerSec = 180.0f;
 		}
 		
 		private enum UnitState
@@ -32,35 +32,23 @@ namespace AI
 		private float mStoppingFromDistance = 0.0f;
 		private float mStoppingFromSpeed = 0.0f;
 		
-		private Vector2D mPrevPosition;
-		//private float mPrevRotation = 0.0f;
+		private Transform2D mPrevTransform = new Transform2D();
 		
 		//public Unit() : this(new UnitData())
 		//{
 		//}
 		
-		public Unit(UnitData data, Vector2D initialPosition)
+		public Unit(UnitData data, float x, float y, float rotation)
 		{
 			mData = data;
-			Teleport(initialPosition);
-		}
-		
-		public void Teleport(Vector2D position)
-		{
-			mData.Position = position;
-			mPrevPosition = position;
+			Teleport(new Transform2D(x, y, rotation));
 		}
 		
 		public Vector2D Position
 		{
 			get
 			{
-				return mData.Position;
-			}
-			
-			private set
-			{
-				mData.Position = value;
+				return mData.Transform.Position;
 			}
 		}
 		
@@ -68,7 +56,7 @@ namespace AI
 		{
 			get
 			{
-				return mData.Rotation;
+				return mData.Transform.Rotation;
 			}
 		}
 		
@@ -78,7 +66,7 @@ namespace AI
 			{
 				if (mWaypoints.Count == 0)
 				{
-					return Position;
+					return mData.Transform.Position;
 				}
 				else
 				{
@@ -94,6 +82,8 @@ namespace AI
 		
 		public void Update(float deltaTime)
 		{
+			Transform2D currentTransform = mData.Transform.Clone();
+			
 			switch (mState)
 			{
 				case UnitState.Stopped:
@@ -108,6 +98,8 @@ namespace AI
 					Driving(deltaTime);
 				break;
 			}
+			
+			mPrevTransform.CopyFrom(currentTransform);
 		}
 		
 		public void AddWaypoint(Vector2D waypoint, bool additive)
@@ -130,7 +122,7 @@ namespace AI
 		private void Stopping(float deltaTime)
 		{
 			// How far are we from destination?
-			Vector2D delta = Destination - this.Position;
+			Vector2D delta = Destination - mData.Transform.Position;
 			float distance = delta.Magnitude;
 			
 			// "Dad, are we there yet?"
@@ -152,12 +144,9 @@ namespace AI
 				Vector2D direction = delta.Normalized;
 				
 				float desiredSpeed = (distance / mStoppingFromDistance) * mStoppingFromSpeed * deltaTime;
-				Vector2D desiredVelocity = direction * desiredSpeed;
+				Vector2D updateDelta = direction * desiredSpeed;
 				
-				mPrevPosition = Position;
-				//mPrevRotation = Rotation;
-				
-				Position += desiredVelocity;
+				mData.Transform.Translate(updateDelta);
 			}
 		}
 		
@@ -166,11 +155,11 @@ namespace AI
 			// TODO: clean handling of 2D AI coordinates vs. 3D world
 	
 			// How far are we from destination?
-			Vector2D delta = Destination - this.Position;
+			Vector2D delta = Destination - mData.Transform.Position;
 			float distance = delta.Magnitude;
 			
 			// How fast are we moving?
-			Vector2D currentVelocity = (Position - mPrevPosition);
+			Vector2D currentVelocity = (mData.Transform.Position - mPrevTransform.Position);
 			float currentSpeed = currentVelocity.Magnitude / deltaTime;
 			
 			// Distance to stop assumes constant deceleration, so average speed is half the current speed.
@@ -190,29 +179,30 @@ namespace AI
 				// speed over a number of time steps. Assumes deltaTime will be
 				// same for each time step.
 				float timeStepsToMaxSpeed = mData.AccelerateTimeSec / deltaTime;
-				float maxSpeed = mData.MaxSpeedKmPerHour * Constants.KmPerHour2MetersPerSecond;
-				float maxAcceleration = maxSpeed / timeStepsToMaxSpeed;
+				float maxAcceleration = mData.MaxSpeedMetersPerSec / timeStepsToMaxSpeed;
 				
 				// Head directly for destination.
 				Vector2D direction = delta.Normalized;
 	
 				// Apply deltaTime here, so speed is actually speed per frame, not per second.
 				float desiredSpeed = currentSpeed + maxAcceleration;
-				if (desiredSpeed > maxSpeed)
-					desiredSpeed = maxSpeed;
+				if (desiredSpeed > mData.MaxSpeedMetersPerSec)
+					desiredSpeed = mData.MaxSpeedMetersPerSec;
 				Vector2D updateDelta = direction * (desiredSpeed * deltaTime);
 				if (updateDelta.Magnitude > distance)
 				{
 					updateDelta = direction * distance;
 				}
 				
-				mPrevPosition = Position;
-				//mPrevRotation = Rotation;
-				
-				Position += updateDelta;
-				
-				//TODO: update Rotation
+				mData.Transform.Translate(updateDelta);
+				mData.Transform.LookAt(Destination);
 			}
+		}
+		
+		private void Teleport(Transform2D transform)
+		{
+			mData.Transform.CopyFrom(transform);
+			mPrevTransform.CopyFrom(transform);
 		}
 	}
 }

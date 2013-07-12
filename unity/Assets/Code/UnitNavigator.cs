@@ -11,10 +11,11 @@ public class UnitNavigator : MonoBehaviour
 	[SerializeField]private Unit.UnitData m_UnitData;
 
 	private Unit mUnit = null;
+	private Vector3 mPreviousEulerAngles;
 
 	void Awake()
 	{
-		mUnit = new Unit(m_UnitData, VectorHelper.FromVector3(transform.position));
+		mUnit = new Unit(m_UnitData, transform.position.x, transform.position.z, transform.eulerAngles.y);
 	}
 	
 	void Start()
@@ -29,6 +30,8 @@ public class UnitNavigator : MonoBehaviour
 		{
 			controller.OnAddWaypoint += AddWaypoint;
 		}
+		
+		mPreviousEulerAngles = transform.eulerAngles;
 	}
 	
 	private void AddWaypoint(Vector3 waypoint, bool additive)
@@ -39,7 +42,31 @@ public class UnitNavigator : MonoBehaviour
 	void FixedUpdate()
 	{
 		mUnit.Update(Time.deltaTime);
-		transform.position = VectorHelper.ToVector3(mUnit.Position, transform.position.y);
+		
+		// TODO: constraint pitch and roll
+		// TODO: constrain altitude (jump height)
+		// TODO: lerp (rapidly) to unit position and rotation
+		
+		//transform.position = VectorHelper.ToVector3(mUnit.Position, transform.position.y);
+		Vector3 newPosition = VectorHelper.ToVector3(mUnit.Position, rigidbody.position.y);
+		rigidbody.position = Vector3.Lerp(rigidbody.position, newPosition, 10.0f * Time.deltaTime);
+		
+		// Update orientation. Get y rotation from the unit; constrain x/z rotation within limits.
+		Vector3 angles = transform.eulerAngles;
+		bool xclamped, zclamped;
+		float xrot = Clamper.SmoothClampAngleMinMax(mPreviousEulerAngles.x, angles.x, -35.0f, 35.0f, Time.deltaTime, 0.25f, out xclamped);
+		float yrot = mUnit.Rotation;
+		float zrot = Clamper.SmoothClampAngleMinMax(mPreviousEulerAngles.z, angles.z, -35.0f, 35.0f, Time.deltaTime, 0.25f, out zclamped);
+		Vector3 newAngles = new Vector3(xrot, yrot, zrot);
+		if (xclamped || zclamped)
+		{
+			//rigidbody.angularVelocity = Vector3.zero;
+			//rigidbody.Sleep();
+		}
+		
+		//transform.eulerAngles = newAngles;
+		rigidbody.rotation = Quaternion.Lerp(rigidbody.rotation, Quaternion.Euler(newAngles), 10.0f * Time.deltaTime);
+		mPreviousEulerAngles = rigidbody.rotation.eulerAngles;
 	}
 	
 	void OnDrawGizmos()
